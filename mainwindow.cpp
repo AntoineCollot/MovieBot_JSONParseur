@@ -7,8 +7,6 @@ MainWindow::MainWindow(QWidget *parent) :
 {
     ui->setupUi(this);
 
-    apiKey = "2d28c41e6dab17f0aa2ddb2a9cf2b8f0";
-
     //Manager of the title request
     managerMovieTitle = new QNetworkAccessManager(this);
     connect(managerMovieTitle, SIGNAL(finished(QNetworkReply*)),
@@ -19,11 +17,23 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(managerRecommendations, SIGNAL(finished(QNetworkReply*)),
             this, SLOT(replyRecommendationsFinished(QNetworkReply*)));
 
+    //Initialize variables
+    QSettings settings("Tmdb_JSONParser", "Kanap");
     movieTitle = QString();
     recommendationList = QList<QString>();
     addingMovie = false;
-    filePath = "file.json";
 
+    //Get values from settings, second arguement is default value
+    filePath = settings.value("filePath","tmdb_Recommendations.json").toString();
+    ui->filePathText->setText(filePath);
+    ui->fromId->setValue(settings.value("fromId",0).toInt());
+    ui->toId->setValue(settings.value("toId",100).toInt());
+    apiKey = settings.value("apiKey","2d28c41e6dab17f0aa2ddb2a9cf2b8f0").toString();
+    ui->apiKeyLineEdit->setText(apiKey);
+
+    //Set the timer
+    timer = new QTimer(this);
+    connect(timer, SIGNAL(timeout()), this, SLOT(addNextMovie()));
 }
 
 MainWindow::~MainWindow()
@@ -31,22 +41,12 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-void MainWindow::Run()
-{
-    if(!run)
-        return;
-
-    qDebug()<<"AddMovie"<<endl;
-    AddMovie("test.json","550");
-
-    QTimer *timer = new QTimer(this);
-    connect(timer, SIGNAL(timeout()), this, SLOT(Run()));
-    timer->start(2010);
-}
-
 //Add a movie as json to the file
-void MainWindow::AddMovie(QString fileName, QString movieId)
+void MainWindow::addNextMovie()
 {
+
+    qDebug()<<"Try AddMovie"<<endl;
+
     //If we are still adding a movie, do not add another one at the same time
     if(addingMovie)
         return;
@@ -55,8 +55,18 @@ void MainWindow::AddMovie(QString fileName, QString movieId)
     movieTitle = QString();
     recommendationList.clear();
 
+    //Go to the next movie
+    currentId++;
+
+    //If we are on the last movie to add, stop the timer so this function won't be called another time
+    if(currentId>=ui->toId->value())
+    {
+        timer->stop();
+    }
+
     //Set the movie id
-    this->movieId =movieId;
+    movieId =QString::number(currentId);
+    ui->currentIdText->setText("Current Id : <b>"+movieId+"</b>");
 
     //Note that whe start adding a movie
     titleRequestFinished=false;
@@ -70,6 +80,9 @@ void MainWindow::AddMovie(QString fileName, QString movieId)
    //request of the recommendations by id
    QString requestRecommendationsURL = "http://api.themoviedb.org/3/movie/"+movieId+"/recommendations?api_key="+apiKey;
    managerRecommendations->get(QNetworkRequest(QUrl(requestRecommendationsURL)));
+
+   ui->progressBar->setValue(1);
+   ui->progressBar->setFormat("sending requests to tmdb...(%v / %m)");
 }
 
 //Callback called when we get the response of the movie title request
@@ -84,7 +97,7 @@ void MainWindow::replyMovieFinished(QNetworkReply *reply)
     //Get the movie title from the json
     movieTitle = getMovieTitleFromJSON(object);
 
-    qDebug()<<movieTitle<<endl;
+    qDebug()<<movieTitle;
 
     //Note that we finished
     titleRequestFinished=true;
@@ -116,14 +129,14 @@ void MainWindow::replyRecommendationsFinished(QNetworkReply *reply)
         exportMovieToFile();
 }
 
-//Parse the json response of the title request
+//Parse the json response of the title request, return empty string if invalide
 QString MainWindow::getMovieTitleFromJSON(QJsonObject jsonObject)
 {
     //Get the title from the movie json object
     return jsonObject.find("title").value().toString();
 }
 
-//Parse the json response of the recommendations request
+//Parse the json response of the recommendations request, return empty list if invalide
 QList<QString> MainWindow::getRecommendationsFromJSON(QJsonObject jsonObject)
 {
     //Array containing the results of the request
@@ -150,14 +163,38 @@ QList<QString> MainWindow::getRecommendationsFromJSON(QJsonObject jsonObject)
     return titles;
 }
 
+//Export the movie data to a json file
 void MainWindow::exportMovieToFile()
 {
-    QString json = makeMovieJson(movieTitle,recommendationList);
+    ui->progressBar->setValue(3);
+    ui->progressBar->setFormat("parsing data...(%v / %m)");
 
-    writeInFile(filePath,json);
+    //Check if we have not empty data
+    if(!movieTitle.isEmpty() && !recommendationList.isEmpty())
+    {
+        //Build the json with the movie title and the recommendations
+        QString json = makeMovieJson(movieTitle,recommendationList);
+
+        ui->progressBar->setValue(4);
+        ui->progressBar->setFormat("writing to file...(%v / %m)");
+
+        //Write the movie json into the file
+        if(!json.isEmpty())
+            writeInFile(filePath,json);
+
+        ui->progressBar->setValue(5);
+        ui->progressBar->setFormat("complete (%v / %m)");
+    }
+    //If one of the value is empty, the data are invalide
+    else
+    {
+        ui->progressBar->setValue(5);
+        ui->progressBar->setFormat("invalide data");
+    }
 
     //Note that we finished ending a movie
     addingMovie = false;
+
 }
 
 //Build the json with the movie title and the recommendations
@@ -172,7 +209,7 @@ QString MainWindow::makeMovieJson(QString title,QList<QString>recommended)
         recommendedJson+="\""+recommended.at(i)+"\"";
     }
 
-    return "{\"title\":\""+title+"\",\"related\":"+recommendedJson+"}";
+    return "{\"title\":\""+title+"\",\"id\":"+movieId+",\"related\":"+recommendedJson+"}";
 }
 
 //Write the movie json into the file
@@ -221,18 +258,48 @@ QJsonObject MainWindow::ObjectFromString(const QString& json)
 
 bool MainWindow::requestsFinished()
 {
-    return titleRequestFinished && recommendationsRequestFinished;
+    bool finished = titleRequestFinished && recommendationsRequestFinished;
+    if(finished)
+    {
+        ui->progressBar->setValue(2);
+        ui->progressBar->setFormat("waiting all replies...(%v / %m)");
+    }
+    return finished;
 }
 
-void MainWindow::on_AddMovie_clicked()
+void MainWindow::on_Run_clicked()
 {
-    run=true;
-    Run();
+    //Set the starting id as -1 cause addNextMovie() increases it by 1 first
+    currentId = ui->fromId->value()-1;
+
+    //Disable ui
+    ui->fromId->setEnabled(false);
+    ui->toId->setEnabled(false);
+    ui->filePathText->setEnabled(false);
+    ui->setFilePath->setEnabled(false);
+    ui->apiKeyLineEdit->setEnabled(false);
+    ui->Run->setEnabled(false);
+
+    //Save the current settings
+    settings.setValue("filePath",filePath);
+    settings.setValue("fromId",ui->fromId->value());
+    settings.setValue("toId",ui->toId->value());
+    settings.setValue("apiKey",apiKey);
+
+    timer->start(2017);
 }
 
 void MainWindow::on_Stop_clicked()
 {
-    run=false;
+    timer->stop();
+
+    //Enable ui
+    ui->fromId->setEnabled(true);
+    ui->toId->setEnabled(true);
+    ui->filePathText->setEnabled(true);
+    ui->setFilePath->setEnabled(true);
+    ui->apiKeyLineEdit->setEnabled(true);
+    ui->Run->setEnabled(true);
 }
 
 void MainWindow::on_setFilePath_clicked()
@@ -244,5 +311,18 @@ void MainWindow::on_setFilePath_clicked()
         return;
     }
 
-    filePath = file;
+    //Set the text of the line edit (which call another event setting the file path)
+    ui->filePathText->setText(file);
+}
+
+void MainWindow::on_filePathText_textChanged(const QString &arg1)
+{
+    //set the file path to the content of the line edit
+    filePath = arg1;
+}
+
+void MainWindow::on_apiKeyLineEdit_editingFinished()
+{
+    //Set the api key to the new text of this line edit
+    apiKey = ui->apiKeyLineEdit->text();
 }
