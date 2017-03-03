@@ -14,6 +14,7 @@
 #include <QTimer>
 #include <QFileDialog>
 #include <QSettings>
+#include <QMessageBox>
 
 #include <QDebug>
 
@@ -37,7 +38,7 @@ public:
 
     bool requestsFinished();
     QJsonObject ObjectFromString(const QString& json);
-
+    void stopAddingMovies();
 
 public slots:
     void addNextMovie();
@@ -54,6 +55,10 @@ private slots:
     void on_filePathText_textChanged(const QString &arg1);
 
     void on_apiKeyLineEdit_editingFinished();
+
+    void on_actionAbout_triggered();
+
+    void on_actionAbout_Qt_triggered();
 
 private:
     Ui::MainWindow *ui;
@@ -88,7 +93,7 @@ private:
     int currentId;
 
     //Save settings
-    QSettings settings;
+    QSettings *settings;
 
     //Timer that calls the add movie function every x secondes
     QTimer *timer;

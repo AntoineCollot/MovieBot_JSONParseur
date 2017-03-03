@@ -18,17 +18,17 @@ MainWindow::MainWindow(QWidget *parent) :
             this, SLOT(replyRecommendationsFinished(QNetworkReply*)));
 
     //Initialize variables
-    QSettings settings("Tmdb_JSONParser", "Kanap");
+    settings = new QSettings("Kanap","Tmdb_JSONParser",this);
     movieTitle = QString();
     recommendationList = QList<QString>();
     addingMovie = false;
 
     //Get values from settings, second arguement is default value
-    filePath = settings.value("filePath","tmdb_Recommendations.json").toString();
+    filePath = settings->value("filePath","tmdb_Recommendations.json").toString();
     ui->filePathText->setText(filePath);
-    ui->fromId->setValue(settings.value("fromId",0).toInt());
-    ui->toId->setValue(settings.value("toId",100).toInt());
-    apiKey = settings.value("apiKey","2d28c41e6dab17f0aa2ddb2a9cf2b8f0").toString();
+    ui->fromId->setValue(settings->value("fromId",0).toInt());
+    ui->toId->setValue(settings->value("toId",100).toInt());
+    apiKey = settings->value("apiKey","2d28c41e6dab17f0aa2ddb2a9cf2b8f0").toString();
     ui->apiKeyLineEdit->setText(apiKey);
 
     //Set the timer
@@ -44,9 +44,6 @@ MainWindow::~MainWindow()
 //Add a movie as json to the file
 void MainWindow::addNextMovie()
 {
-
-    qDebug()<<"Try AddMovie"<<endl;
-
     //If we are still adding a movie, do not add another one at the same time
     if(addingMovie)
         return;
@@ -61,7 +58,7 @@ void MainWindow::addNextMovie()
     //If we are on the last movie to add, stop the timer so this function won't be called another time
     if(currentId>=ui->toId->value())
     {
-        timer->stop();
+        stopAddingMovies();
     }
 
     //Set the movie id
@@ -97,8 +94,6 @@ void MainWindow::replyMovieFinished(QNetworkReply *reply)
     //Get the movie title from the json
     movieTitle = getMovieTitleFromJSON(object);
 
-    qDebug()<<movieTitle;
-
     //Note that we finished
     titleRequestFinished=true;
 
@@ -118,8 +113,6 @@ void MainWindow::replyRecommendationsFinished(QNetworkReply *reply)
 
     //Get a list of recommendation from the json
     recommendationList = getRecommendationsFromJSON(object);
-
-    qDebug()<<recommendationList<<endl;
 
     //Note that we finished
     recommendationsRequestFinished=true;
@@ -281,15 +274,21 @@ void MainWindow::on_Run_clicked()
     ui->Run->setEnabled(false);
 
     //Save the current settings
-    settings.setValue("filePath",filePath);
-    settings.setValue("fromId",ui->fromId->value());
-    settings.setValue("toId",ui->toId->value());
-    settings.setValue("apiKey",apiKey);
+    settings->setValue("filePath",filePath);
+    settings->setValue("fromId",ui->fromId->value());
+    settings->setValue("toId",ui->toId->value());
+    settings->setValue("apiKey",apiKey);
 
     timer->start(2017);
 }
 
 void MainWindow::on_Stop_clicked()
+{
+    stopAddingMovies();
+}
+
+//Stop adding movies
+void MainWindow::stopAddingMovies()
 {
     timer->stop();
 
@@ -325,4 +324,14 @@ void MainWindow::on_apiKeyLineEdit_editingFinished()
 {
     //Set the api key to the new text of this line edit
     apiKey = ui->apiKeyLineEdit->text();
+}
+
+void MainWindow::on_actionAbout_triggered()
+{
+    QMessageBox::about(this,"About Tmdb JSON parser","Made by : Antoine Collot\nfor Kanap\n\nESME Sudria\n03/03/2017");
+}
+
+void MainWindow::on_actionAbout_Qt_triggered()
+{
+    QMessageBox::aboutQt(this,"About Qt");
 }
