@@ -4,7 +4,7 @@
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
-{
+{    
     ui->setupUi(this);
 
     //Manager of the title request
@@ -299,6 +299,8 @@ void MainWindow::stopAddingMovies()
     ui->setFilePath->setEnabled(true);
     ui->apiKeyLineEdit->setEnabled(true);
     ui->Run->setEnabled(true);
+
+    ui->currentIdText->setText("Not running");
 }
 
 void MainWindow::on_setFilePath_clicked()
