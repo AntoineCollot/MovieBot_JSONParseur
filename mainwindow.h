@@ -16,8 +16,6 @@
 #include <QSettings>
 #include <QMessageBox>
 
-#include <QDebug>
-
 namespace Ui {
 class MainWindow;
 }
@@ -33,7 +31,7 @@ public:
     QString getMovieTitleFromJSON(QJsonObject jsonObject);
     QList<QString> getRecommendationsFromJSON(QJsonObject jsonObject);
     void exportMovieToFile();
-    QString makeMovieJson(QString title,QList<QString>recommended);
+    QString makeMovieJson(QString title,QList<QString>recommended,QString id);
     bool writeInFile(QString fileName, QString movieJSON);
 
     bool requestsFinished();

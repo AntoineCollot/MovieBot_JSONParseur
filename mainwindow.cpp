@@ -7,6 +7,8 @@ MainWindow::MainWindow(QWidget *parent) :
 {    
     ui->setupUi(this);
 
+    //this->setWindowTitle("Tmdb Json Parser");
+
     //Manager of the title request
     managerMovieTitle = new QNetworkAccessManager(this);
     connect(managerMovieTitle, SIGNAL(finished(QNetworkReply*)),
@@ -55,6 +57,8 @@ void MainWindow::addNextMovie()
     //Go to the next movie
     currentId++;
 
+    ui->progressBarTotal->setValue(currentId);
+
     //If we are on the last movie to add, stop the timer so this function won't be called another time
     if(currentId>=ui->toId->value())
     {
@@ -65,7 +69,7 @@ void MainWindow::addNextMovie()
     movieId =QString::number(currentId);
     ui->currentIdText->setText("Current Id : <b>"+movieId+"</b>");
 
-    //Note that whe start adding a movie
+    //Note that we start adding a movie
     titleRequestFinished=false;
     recommendationsRequestFinished=false;
     addingMovie = true;
@@ -78,8 +82,8 @@ void MainWindow::addNextMovie()
    QString requestRecommendationsURL = "http://api.themoviedb.org/3/movie/"+movieId+"/recommendations?api_key="+apiKey;
    managerRecommendations->get(QNetworkRequest(QUrl(requestRecommendationsURL)));
 
-   ui->progressBar->setValue(1);
-   ui->progressBar->setFormat("sending requests to tmdb...(%v / %m)");
+   ui->progressBarCurrent->setValue(1);
+   ui->progressBarCurrent->setFormat("sending requests to tmdb...(%v / %m)");
 }
 
 //Callback called when we get the response of the movie title request
@@ -159,30 +163,30 @@ QList<QString> MainWindow::getRecommendationsFromJSON(QJsonObject jsonObject)
 //Export the movie data to a json file
 void MainWindow::exportMovieToFile()
 {
-    ui->progressBar->setValue(3);
-    ui->progressBar->setFormat("parsing data...(%v / %m)");
+    ui->progressBarCurrent->setValue(3);
+    ui->progressBarCurrent->setFormat("parsing data...(%v / %m)");
 
     //Check if we have not empty data
     if(!movieTitle.isEmpty() && !recommendationList.isEmpty())
     {
         //Build the json with the movie title and the recommendations
-        QString json = makeMovieJson(movieTitle,recommendationList);
+        QString json = makeMovieJson(movieTitle,recommendationList,movieId);
 
-        ui->progressBar->setValue(4);
-        ui->progressBar->setFormat("writing to file...(%v / %m)");
+        ui->progressBarCurrent->setValue(4);
+        ui->progressBarCurrent->setFormat("writing to file...(%v / %m)");
 
         //Write the movie json into the file
         if(!json.isEmpty())
             writeInFile(filePath,json);
 
-        ui->progressBar->setValue(5);
-        ui->progressBar->setFormat("complete (%v / %m)");
+        ui->progressBarCurrent->setValue(5);
+        ui->progressBarCurrent->setFormat("complete (%v / %m)");
     }
     //If one of the value is empty, the data are invalide
     else
     {
-        ui->progressBar->setValue(5);
-        ui->progressBar->setFormat("invalide data");
+        ui->progressBarCurrent->setValue(5);
+        ui->progressBarCurrent->setFormat("invalide data");
     }
 
     //Note that we finished ending a movie
@@ -191,7 +195,7 @@ void MainWindow::exportMovieToFile()
 }
 
 //Build the json with the movie title and the recommendations
-QString MainWindow::makeMovieJson(QString title,QList<QString>recommended)
+QString MainWindow::makeMovieJson(QString title,QList<QString>recommended,QString id)
 {
     QString recommendedJson="";
 
@@ -201,8 +205,10 @@ QString MainWindow::makeMovieJson(QString title,QList<QString>recommended)
             recommendedJson+=",";
         recommendedJson+="\""+recommended.at(i)+"\"";
     }
+    QString firstLine = "{\"index\":{\"_index\":\"content\",\"_type\":\"movie\",\"_id\":"+id+"}}";
+    QString secondLine = "{\"title\":\""+title+"\",\"related\":["+recommendedJson+"]}";
 
-    return "{\"title\":\""+title+"\",\"id\":"+movieId+",\"related\":"+recommendedJson+"}";
+    return firstLine+"\n"+secondLine;
 }
 
 //Write the movie json into the file
@@ -236,14 +242,6 @@ QJsonObject MainWindow::ObjectFromString(const QString& json)
         {
             obj = doc.object();
         }
-        else
-        {
-            qDebug() << "Document is not an object" << endl;
-        }
-    }
-    else
-    {
-        qDebug() << "Invalid JSON...\n" << json << endl;
     }
 
     return obj;
@@ -254,8 +252,8 @@ bool MainWindow::requestsFinished()
     bool finished = titleRequestFinished && recommendationsRequestFinished;
     if(finished)
     {
-        ui->progressBar->setValue(2);
-        ui->progressBar->setFormat("waiting all replies...(%v / %m)");
+        ui->progressBarCurrent->setValue(2);
+        ui->progressBarCurrent->setFormat("waiting all replies...(%v / %m)");
     }
     return finished;
 }
@@ -264,6 +262,10 @@ void MainWindow::on_Run_clicked()
 {
     //Set the starting id as -1 cause addNextMovie() increases it by 1 first
     currentId = ui->fromId->value()-1;
+
+    //Set the value of the progress bar
+    ui->progressBarTotal->setMinimum(ui->fromId->value());
+    ui->progressBarTotal->setMaximum(ui->toId->value());
 
     //Disable ui
     ui->fromId->setEnabled(false);
