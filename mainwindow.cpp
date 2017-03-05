@@ -7,7 +7,7 @@ MainWindow::MainWindow(QWidget *parent) :
 {    
     ui->setupUi(this);
 
-    //this->setWindowTitle("Tmdb Json Parser");
+    this->setWindowTitle("Tmdb Json Parser");
 
     //Manager of the title request
     managerMovieTitle = new QNetworkAccessManager(this);
@@ -186,7 +186,12 @@ void MainWindow::exportMovieToFile()
     else
     {
         ui->progressBarCurrent->setValue(5);
-        ui->progressBarCurrent->setFormat("invalide data");
+        //if the movie title is missing
+        if(movieTitle.isEmpty())
+            ui->progressBarCurrent->setFormat("invalide movie data");
+        //Otherwise, it's the recommendations that are missing
+        else
+            ui->progressBarCurrent->setFormat("invalide recommendations data");
     }
 
     //Note that we finished ending a movie
@@ -281,7 +286,7 @@ void MainWindow::on_Run_clicked()
     settings->setValue("toId",ui->toId->value());
     settings->setValue("apiKey",apiKey);
 
-    timer->start(2017);
+    timer->start(550);
 }
 
 void MainWindow::on_Stop_clicked()
@@ -301,6 +306,18 @@ void MainWindow::stopAddingMovies()
     ui->setFilePath->setEnabled(true);
     ui->apiKeyLineEdit->setEnabled(true);
     ui->Run->setEnabled(true);
+
+    //Save the id we stopped at
+    ui->fromId->setValue(currentId+1);
+    //save the current id in regedit
+    settings->setValue("fromId",ui->fromId->value());
+
+    //If the from id is greater than target id, increase target id and save it
+    if(ui->fromId->value()>=ui->toId->value())
+    {
+        ui->toId->setValue(ui->toId->value()+100);
+        settings->setValue("toId",ui->toId->value());
+    }
 
     ui->currentIdText->setText("Not running");
 }
