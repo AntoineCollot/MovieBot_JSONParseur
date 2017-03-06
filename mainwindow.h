@@ -28,11 +28,11 @@ public:
     explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();
 
-    QString getMovieTitleFromJSON(QJsonObject jsonObject);
-    QList<QString> getRecommendationsFromJSON(QJsonObject jsonObject);
+    QString getMovieTitleFromJSON(QJsonObject& jsonObject);
+    QList<QString> getRecommendationsFromJSON(QJsonObject& jsonObject);
     void exportMovieToFile();
-    QString makeMovieJson(QString title,QList<QString>recommended,QString id);
-    bool writeInFile(QString fileName, QString movieJSON);
+    QString makeMovieJson(QString& title,QList<QString>& recommended,QString& id);
+    bool writeInFile(QString& fileName, QString& movieJSON);
 
     bool requestsFinished();
     QJsonObject ObjectFromString(const QString& json);

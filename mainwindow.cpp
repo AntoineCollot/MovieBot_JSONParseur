@@ -127,14 +127,14 @@ void MainWindow::replyRecommendationsFinished(QNetworkReply *reply)
 }
 
 //Parse the json response of the title request, return empty string if invalide
-QString MainWindow::getMovieTitleFromJSON(QJsonObject jsonObject)
+QString MainWindow::getMovieTitleFromJSON(QJsonObject &jsonObject)
 {
     //Get the title from the movie json object
     return jsonObject.find("title").value().toString();
 }
 
 //Parse the json response of the recommendations request, return empty list if invalide
-QList<QString> MainWindow::getRecommendationsFromJSON(QJsonObject jsonObject)
+QList<QString> MainWindow::getRecommendationsFromJSON(QJsonObject& jsonObject)
 {
     //Array containing the results of the request
     QJsonArray resultArray = jsonObject.find("results").value().toArray();
@@ -188,10 +188,10 @@ void MainWindow::exportMovieToFile()
         ui->progressBarCurrent->setValue(5);
         //if the movie title is missing
         if(movieTitle.isEmpty())
-            ui->progressBarCurrent->setFormat("invalide movie data");
+            ui->progressBarCurrent->setFormat("invalid movie data");
         //Otherwise, it's the recommendations that are missing
         else
-            ui->progressBarCurrent->setFormat("invalide recommendations data");
+            ui->progressBarCurrent->setFormat("invalid recommendations data");
     }
 
     //Note that we finished ending a movie
@@ -200,7 +200,7 @@ void MainWindow::exportMovieToFile()
 }
 
 //Build the json with the movie title and the recommendations
-QString MainWindow::makeMovieJson(QString title,QList<QString>recommended,QString id)
+QString MainWindow::makeMovieJson(QString &title,QList<QString>&recommended,QString &id)
 {
     QString recommendedJson="";
 
@@ -217,7 +217,7 @@ QString MainWindow::makeMovieJson(QString title,QList<QString>recommended,QStrin
 }
 
 //Write the movie json into the file
-bool MainWindow::writeInFile(QString fileName, QString movieJSON)
+bool MainWindow::writeInFile(QString &fileName, QString &movieJSON)
 {
     QFile file(fileName);
     if (file.open(QIODevice::ReadWrite | QIODevice::Append)) {
